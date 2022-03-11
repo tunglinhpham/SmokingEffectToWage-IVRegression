@@ -1,0 +1,340 @@
+---------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\University of Kent\01. Lectures\AUT - EC821 - Econometric Methods\Coursework\Data a
+> nd documentation\data\tp386_coursework.log
+  log type:  text
+ opened on:  27 Jan 2021, 22:18:57
+
+. 
+. clear
+
+. sysuse apsp_o13s_eul_pwta16_sample, clear
+
+. 
+. //clear unnecessary variables
+. keep HOURPAY AGE edageband SMOKEVER CIGNOW LIMITA LIMITK MF5964 PWTA16
+
+. 
+. //cleaning data
+. drop if HOURPAY < 0                                     //clearing "no answer" or "does not apply
+> " cases
+(91,758 observations deleted)
+
+. drop if MF5964 < 0                                      //clearing "no answer" or "does not apply
+> " cases
+(2,138 observations deleted)
+
+. replace MF5964 = 0 if MF5964 !=1        //converting into dummy variable
+(17,992 real changes made)
+
+. drop if edageband < 0                           //clearing "no answer" or "does not apply" cases
+(114 observations deleted)
+
+. drop if edageband > 70                          //clearing "Still in education or never had educa
+> tion" cases
+(879 observations deleted)
+
+. drop if SMOKEVER < 0                            //clearing "dl/refusal" or "does not apply" cases
+(117 observations deleted)
+
+. drop if CIGNOW == -8                            //clearing "dl/refusal" cases
+(5 observations deleted)
+
+. replace CIGNOW = 0 if CIGNOW !=1        //converting into dummy variable
+(27,408 real changes made)
+
+. drop if LIMITA == -8                            //clearing "no answer" cases
+(20 observations deleted)
+
+. replace LIMITA = 0 if LIMITA !=1        //converting into dummy variable
+(31,643 real changes made)
+
+. drop if LIMITK == -8                            //clearing "no answer" cases
+(8 observations deleted)
+
+. replace LIMITK = 0 if LIMITK !=1        //converting into dummy variable
+(31,065 real changes made)
+
+. 
+. //clearing outliers in person weight
+. drop if PWTA16 == 0                                     //clearing person with 0 weight
+(0 observations deleted)
+
+. egen Q1_PWTA16 = pctile(PWTA16), p(25)
+
+. egen Q3_PWTA16 = pctile(PWTA16), p(75)
+
+. egen IQ_PWTA16 = iqr(PWTA16)
+
+. gen outlier1 = 1 if (PWTA16 < Q1_PWTA16 - 1.25*IQ_PWTA16| PWTA16 > Q3_PWTA16 + 1.25*IQ_PWTA16)
+(33,086 missing values generated)
+
+. drop if outlier1 == 1
+(599 observations deleted)
+
+. 
+. //generate log of gross hourly pay
+. gen lnwage = log(HOURPAY)
+
+. label variable lnwage "Log of gross hourly pay"
+
+. 
+. //clearing outliers in log of gross hourly pay
+. egen Q1_lw = pctile(lnwage), p(25)
+
+. egen Q3_lw = pctile(lnwage), p(75)
+
+. egen IQ_lw = iqr(lnwage)
+
+. gen outlier2 = 1 if (lnwage < Q1_lw - 1.25*IQ_lw| lnwage > Q3_lw + 1.25*IQ_lw)
+(32,325 missing values generated)
+
+. drop if outlier2 == 1
+(761 observations deleted)
+
+. 
+. //clearing unnecessary variables for outliers
+. drop Q1_PWTA16 Q3_PWTA16 IQ_PWTA16 outlier1 Q1_lw Q3_lw IQ_lw outlier2
+
+. 
+. //generate dummy variables for schooling-finish age
+. gen edageband1 = 0
+
+. replace edageband1 = 1 if edageband < 16
+(2,374 real changes made)
+
+. label variable edageband1 "Under 16"
+
+. gen edageband2 = 0
+
+. replace edageband2 = 1 if edageband == 16
+(19,990 real changes made)
+
+. label variable edageband2 "16 to 19"
+
+. gen edageband3 = 0
+
+. replace edageband3 = 1 if edageband == 20
+(8,924 real changes made)
+
+. label variable edageband3 "20 to 24"
+
+. gen edageband4 = 0
+
+. replace edageband4 = 1 if edageband == 25
+(933 real changes made)
+
+. label variable edageband4 "25 to 29"
+
+. gen edageband5 = 0
+
+. replace edageband5 = 1 if edageband > 29
+(104 real changes made)
+
+. label variable edageband5 "30 and over"
+
+. 
+. //generate Age squared
+. gen age2 = AGE^2
+
+. label variable age2 "Age squared"
+
+. 
+. //generate Weight squared
+. gen weight2 = PWTA16^2
+
+. label variable weight2 "Weight squared"
+
+. 
+. su HOURPAY lnwage edageband1 edageband2 edageband3 edageband4 edageband5 AGE MF5964 CIGNOW PWTA16
+>  LIMITA LIMITK
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+     HOURPAY |     32,325    13.10026    7.254829       2.91      44.51
+      lnwage |     32,325    2.440465     .505509   1.068153   3.795714
+  edageband1 |     32,325    .0734416     .260864          0          1
+  edageband2 |     32,325    .6184068    .4857851          0          1
+  edageband3 |     32,325    .2760712    .4470593          0          1
+-------------+---------------------------------------------------------
+  edageband4 |     32,325    .0288631    .1674243          0          1
+  edageband5 |     32,325    .0032173     .056631          0          1
+         AGE |     32,325    41.82747    11.24821         18         64
+      MF5964 |     32,325    .4787626    .4995565          0          1
+      CIGNOW |     32,325    .1869142    .3898486          0          1
+-------------+---------------------------------------------------------
+      PWTA16 |     32,325    199.4139    123.4259         32        546
+      LIMITA |     32,325    .0611292    .2395708          0          1
+      LIMITK |     32,325    .0782676    .2685964          0          1
+
+. 
+. //OLS regression & IV regression
+. reg lnwage edageband1 edageband3 edageband4 edageband5 AGE age2 MF5964 CIGNOW
+
+      Source |       SS           df       MS      Number of obs   =    32,325
+-------------+----------------------------------   F(8, 32316)     =   1235.87
+       Model |  1935.09193         8  241.886492   Prob > F        =    0.0000
+    Residual |  6324.96088    32,316   .19572227   R-squared       =    0.2343
+-------------+----------------------------------   Adj R-squared   =    0.2341
+       Total |  8260.05282    32,324  .255539315   Root MSE        =    .44241
+
+------------------------------------------------------------------------------
+      lnwage |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+  edageband1 |   -.158276   .0099198   -15.96   0.000    -.1777192   -.1388328
+  edageband3 |   .3313032   .0057352    57.77   0.000     .3200619    .3425444
+  edageband4 |   .3620418   .0148712    24.35   0.000     .3328937      .39119
+  edageband5 |   .2839905   .0435247     6.52   0.000     .1986806    .3693005
+         AGE |   .0667201   .0016166    41.27   0.000     .0635514    .0698888
+        age2 |  -.0006872   .0000196   -35.06   0.000    -.0007256   -.0006488
+      MF5964 |   .1900685   .0049649    38.28   0.000     .1803372    .1997998
+      CIGNOW |  -.1412344   .0064258   -21.98   0.000    -.1538293   -.1286396
+       _cons |   .7831336   .0321414    24.37   0.000     .7201352    .8461319
+------------------------------------------------------------------------------
+
+. estat ovtest                                    //test for omitted variables
+
+Ramsey RESET test using powers of the fitted values of lnwage
+       Ho:  model has no omitted variables
+               F(3, 32313) =     37.89
+                  Prob > F =      0.0000
+
+. estimates store OLS
+
+. 
+. ivregress 2sls lnwage edageband1 edageband3 edageband4 edageband5 AGE age2 MF5964 (CIGNOW = PWTA1
+> 6 weight2 LIMITA LIMITK), first
+
+First-stage regressions
+-----------------------
+
+                                                Number of obs     =     32,325
+                                                F(  11,  32313)   =     109.43
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0359
+                                                Adj R-squared     =     0.0356
+                                                Root MSE          =     0.3828
+
+------------------------------------------------------------------------------
+      CIGNOW |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+  edageband1 |   .1152412   .0085639    13.46   0.000     .0984556    .1320268
+  edageband3 |  -.1205672   .0049297   -24.46   0.000    -.1302296   -.1109047
+  edageband4 |  -.0995955   .0128637    -7.74   0.000    -.1248088   -.0743822
+  edageband5 |  -.1216947   .0376595    -3.23   0.001    -.1955088   -.0478806
+         AGE |  -.0038353   .0013994    -2.74   0.006    -.0065781   -.0010924
+        age2 |  -3.28e-07    .000017    -0.02   0.985    -.0000336    .0000329
+      MF5964 |   .0283843   .0043046     6.59   0.000     .0199471    .0368215
+      PWTA16 |  -.0000161   .0000749    -0.22   0.829     -.000163    .0001307
+     weight2 |   6.00e-09   1.46e-07     0.04   0.967    -2.79e-07    2.91e-07
+      LIMITA |   .0286907    .014037     2.04   0.041     .0011775    .0562038
+      LIMITK |   .0168657   .0125132     1.35   0.178    -.0076607    .0413921
+       _cons |   .3622613   .0287632    12.59   0.000     .3058843    .4186384
+------------------------------------------------------------------------------
+
+
+Instrumental variables (2SLS) regression          Number of obs   =     32,325
+                                                  Wald chi2(8)    =     961.07
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =          .
+                                                  Root MSE        =     1.4023
+
+------------------------------------------------------------------------------
+      lnwage |      Coef.   Std. Err.      z    P>|z|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+      CIGNOW |  -3.616411   .7210085    -5.02   0.000    -5.029562   -2.203261
+  edageband1 |   .2462831   .0896006     2.75   0.006     .0706691     .421897
+  edageband3 |  -.0919086   .0896333    -1.03   0.305    -.2675866    .0837695
+  edageband4 |   .0106175   .0867982     0.12   0.903    -.1595038    .1807388
+  edageband5 |  -.1404418   .1636539    -0.86   0.391    -.4611975     .180314
+         AGE |    .053303   .0058312     9.14   0.000      .041874    .0647319
+        age2 |  -.0006834   .0000621   -11.00   0.000    -.0008051   -.0005616
+      MF5964 |   .2855444   .0252933    11.29   0.000     .2359705    .3351183
+       _cons |   2.039631   .2797952     7.29   0.000     1.491243     2.58802
+------------------------------------------------------------------------------
+Instrumented:  CIGNOW
+Instruments:   edageband1 edageband3 edageband4 edageband5 AGE age2 MF5964
+               PWTA16 weight2 LIMITA LIMITK
+
+. estat overid                                    //test for over-identification
+
+  Tests of overidentifying restrictions:
+
+  Sargan (score) chi2(3) =  5.23829  (p = 0.1552)
+  Basmann chi2(3)        =   5.2372  (p = 0.1552)
+
+. estimates store IV
+
+. 
+. //Hausman test for endogeneity
+. hausman IV OLS, constant sigmamore
+
+Note: the rank of the differenced variance matrix (1) does not equal the number of coefficients
+        being tested (9); be sure this is what you expect, or there may be problems computing the
+        test.  Examine the output of your estimators for anything unexpected and possibly consider
+        scaling your variables so that the coefficients are on a similar scale.
+
+                 ---- Coefficients ----
+             |      (b)          (B)            (b-B)     sqrt(diag(V_b-V_B))
+             |       IV          OLS         Difference          S.E.
+-------------+----------------------------------------------------------------
+      CIGNOW |   -3.616411    -.1412344       -3.475177        .2273694
+  edageband1 |    .2462831     -.158276        .4045591         .026469
+  edageband3 |   -.0919086     .3313032       -.4232117        .0276894
+  edageband4 |    .0106175     .3620418       -.3514243        .0229925
+  edageband5 |   -.1404418     .2839905       -.4244323        .0277692
+         AGE |     .053303     .0667201       -.0134171        .0008778
+        age2 |   -.0006834    -.0006872        3.83e-06        2.51e-07
+      MF5964 |    .2855444     .1900685        .0954759        .0062467
+       _cons |    2.039631     .7831336        1.256498        .0822085
+------------------------------------------------------------------------------
+                       b = consistent under Ho and Ha; obtained from ivregress
+          B = inconsistent under Ha, efficient under Ho; obtained from regress
+
+    Test:  Ho:  difference in coefficients not systematic
+
+                  chi2(1) = (b-B)'[(V_b-V_B)^(-1)](b-B)
+                          =      233.61
+                Prob>chi2 =      0.0000
+                (V_b-V_B is not positive definite)
+
+. 
+. //Boxplot of the first stage of the IV regression
+. reg CIGNOW edageband1 edageband3 edageband4 edageband5 AGE age2 MF5964  //first stage of IV regre
+> ssion
+
+      Source |       SS           df       MS      Number of obs   =    32,325
+-------------+----------------------------------   F(7, 32317)     =    168.15
+       Model |  172.645623         7  24.6636605   Prob > F        =    0.0000
+    Residual |  4740.01906    32,317   .14667262   R-squared       =    0.0351
+-------------+----------------------------------   Adj R-squared   =    0.0349
+       Total |  4912.66469    32,324  .151981954   Root MSE        =    .38298
+
+------------------------------------------------------------------------------
+      CIGNOW |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+  edageband1 |   .1164139   .0085629    13.60   0.000     .0996304    .1331975
+  edageband3 |  -.1217813   .0049184   -24.76   0.000    -.1314216   -.1121411
+  edageband4 |  -.1011242   .0128613    -7.86   0.000    -.1263329   -.0759154
+  edageband5 |  -.1221326    .037672    -3.24   0.001    -.1959712    -.048294
+         AGE |  -.0038608   .0013993    -2.76   0.006    -.0066036   -.0011181
+        age2 |   1.10e-06    .000017     0.06   0.948    -.0000322    .0000344
+      MF5964 |   .0274737   .0042952     6.40   0.000     .0190549    .0358925
+       _cons |   .3615637   .0277512    13.03   0.000     .3071704    .4159571
+------------------------------------------------------------------------------
+
+. predict smk     //get fitted value
+(option xb assumed; fitted values)
+
+. su smk          //summary of fitted value
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         smk |     32,325    .1869142    .0730828   .0158312   .4363135
+
+. graph box smk   //boxplot of fitted value
+
+. 
+end of do-file
+
+. exit, clear
